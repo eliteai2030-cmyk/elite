@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Student Management SPA</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS (XLSX) for Excel Import/Export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body class="h-full flex flex-col">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-indigo-600 shadow-md text-white">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <i class="fa-solid fa-graduation-cap text-2xl"></i>
+                <h1 class="text-xl font-bold tracking-wide">Student Management Portal</h1>
+            </div>
+            <div id="auth-status" class="text-sm bg-indigo-700 px-3 py-1.5 rounded-full flex items-center space-x-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse" id="connection-dot"></span>
+                <span id="connection-text">Connecting to Firebase...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-8 flex flex-col gap-6">
+
+        <!-- Action Toolbar Card -->
+        <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-wrap gap-4 items-center justify-between">
+            <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                <!-- Search Bar -->
+                <div class="relative flex-grow md:w-80">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                        <i class="fa-solid fa-search"></i>
+                    </span>
+                    <input type="text" id="search-input" placeholder="Search by name, ID, address..." 
+                        class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-end">
+                <button onclick="openAddModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition shadow-sm flex items-center space-x-2">
+                    <i class="fa-solid fa-user-plus"></i>
+                    <span>Add Student</span>
+                </button>
+                <button onclick="seedTestData()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition shadow-sm flex items-center space-x-2">
+                    <i class="fa-solid fa-database"></i>
+                    <span>Add 100 Test Rows</span>
+                </button>
+                <button onclick="exportToExcel()" class="bg-sky-600 hover:bg-sky-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition shadow-sm flex items-center space-x-2">
+                    <i class="fa-solid fa-file-excel"></i>
+                    <span>Export Excel</span>
+                </button>
+                <label class="bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition shadow-sm flex items-center space-x-2 cursor-pointer">
+                    <i class="fa-solid fa-file-import"></i>
+                    <span>Import Excel</span>
+                    <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="importFromExcel(event)">
+                </label>
+            </div>
+        </section>
+
+        <!-- Data Table Card -->
+        <section class="bg-white rounded-xl shadow-sm border border-gray-100 flex-grow flex flex-col overflow-hidden">
+            <div class="overflow-x-auto flex-grow">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-gray-50 text-gray-700 uppercase text-xs tracking-wider border-b border-gray-200 sticky top-0">
+                        <tr>
+                            <th class="py-3.5 px-6 font-semibold">Student ID</th>
+                            <th class="py-3.5 px-6 font-semibold">Full Name</th>
+                            <th class="py-3.5 px-6 font-semibold">Address</th>
+                            <th class="py-3.5 px-6 font-semibold">Telephone</th>
+                            <th class="py-3.5 px-6 font-semibold text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="student-table-body" class="divide-y divide-gray-100 text-sm text-gray-600">
+                        <tr>
+                            <td colspan="5" class="py-8 text-center text-gray-400">Loading student records...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination & Footer Bar -->
+            <div class="bg-gray-50 px-6 py-3 border-t border-gray-200 flex flex-wrap justify-between items-center gap-4 text-xs text-gray-600">
+                <div class="flex items-center space-x-4">
+                    <span id="record-count">Showing 0 of 0 records</span>
+                    <div class="flex items-center space-x-2">
+                        <span>Per page:</span>
+                        <select id="rows-per-page" onchange="changeRowsPerPage(event)" class="border border-gray-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                            <option value="10">10</option>
+                            <option value="25" selected>25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Pagination Buttons -->
+                <div class="flex items-center space-x-2">
+                    <button onclick="goToPage(1)" id="btn-first" class="px-2.5 py-1 bg-white border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-angles-left"></i>
+                    </button>
+                    <button onclick="changePage(-1)" id="btn-prev" class="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Previous
+                    </button>
+                    <span id="page-indicator" class="font-medium px-2">Page 1 of 1</span>
+                    <button onclick="changePage(1)" id="btn-next" class="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Next
+                    </button>
+                    <button onclick="goToLastPage()" id="btn-last" class="px-2.5 py-1 bg-white border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-angles-right"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Add/Edit Student Modal -->
+    <div id="student-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all">
+            <div class="bg-indigo-600 px-6 py-4 flex justify-between items-center text-white">
+                <h3 id="modal-title" class="font-bold text-lg">Add New Student</h3>
+                <button onclick="closeModal()" class="text-white/80 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form id="student-form" onsubmit="handleFormSubmit(event)" class="p-6 space-y-4">
+                <input type="hidden" id="doc-id">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 uppercase mb-1">Student ID</label>
+                    <input type="text" id="input-std-id" required placeholder="e.g. STU-1001" 
+                        class="w-full px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 uppercase mb-1">Full Name</label>
+                    <input type="text" id="input-name" required placeholder="e.g. John Doe" 
+                        class="w-full px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 uppercase mb-1">Address</label>
+                    <input type="text" id="input-address" required placeholder="e.g. 123 Main St, City" 
+                        class="w-full px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 uppercase mb-1">Telephone</label>
+                    <input type="tel" id="input-tel" required placeholder="e.g. +1 555-0192" 
+                        class="w-full px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="flex justify-end space-x-3 pt-4 border-t border-gray-100">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition shadow-sm">Save Student</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Firebase App & Firestore Modular SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
+        import { getFirestore, collection, getDocs, addDoc, doc, updateDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // Your exact Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyArazr_wo1buft3sMCYUSy9KKZHJdI3FJY",
+            authDomain: "mydata-6f1d9.firebaseapp.com",
+            projectId: "mydata-6f1d9",
+            storageBucket: "mydata-6f1d9.firebasestorage.app",
+            messagingSenderId: "684246842052",
+            appId: "1:684246842052:web:18fd2b476bc9c44e3d6791",
+            measurementId: "G-YSZJLV7C5F"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const db = getFirestore(app);
+        const COLLECTION_NAME = "students";
+
+        let allStudents = [];
+        let filteredStudents = [];
+        let currentPage = 1;
+        let rowsPerPage = 25;
+
+        const connectionDot = document.getElementById("connection-dot");
+        const connectionText = document.getElementById("connection-text");
+
+        async function initApp() {
+            try {
+                await fetchStudents();
+                connectionDot.classList.remove("bg-yellow-400", "animate-pulse");
+                connectionDot.classList.add("bg-emerald-400");
+                connectionText.textContent = "Connected to Firebase";
+            } catch (error) {
+                console.error("Firebase connection error:", error);
+                connectionDot.classList.remove("bg-yellow-400", "animate-pulse");
+                connectionDot.classList.add("bg-red-400");
+                connectionText.textContent = "Connection Error";
+            }
+        }
+
+        window.fetchStudents = async function() {
+            try {
+                const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
+                allStudents = [];
+                querySnapshot.forEach((docSnapshot) => {
+                    allStudents.push({ firestoreId: docSnapshot.id, ...docSnapshot.data() });
+                });
+                applyFilterAndRender();
+            } catch (e) {
+                console.error("Error fetching documents: ", e);
+            }
+        }
+
+        function applyFilterAndRender() {
+            const term = document.getElementById("search-input").value.toLowerCase();
+            filteredStudents = allStudents.filter(s => 
+                (s.id && s.id.toLowerCase().includes(term)) ||
+                (s.name && s.name.toLowerCase().includes(term)) ||
+                (s.address && s.address.toLowerCase().includes(term)) ||
+                (s.tel && s.tel.toLowerCase().includes(term))
+            );
+
+            // Reset to page 1 if current page exceeds total pages
+            const totalPages = Math.ceil(filteredStudents.length / rowsPerPage) || 1;
+            if (currentPage > totalPages) {
+                currentPage = totalPages;
+            }
+
+            renderTablePage();
+        }
+
+        function renderTablePage() {
+            const tbody = document.getElementById("student-table-body");
+            const totalRecords = filteredStudents.length;
+            const totalPages = Math.ceil(totalRecords / rowsPerPage) || 1;
+
+            if (totalRecords === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-gray-400">No student records found.</td></tr>`;
+                document.getElementById("record-count").textContent = `Showing 0 of 0 records`;
+                document.getElementById("page-indicator").textContent = `Page 1 of 1`;
+                updatePaginationButtons(1, 1);
+                return;
+            }
+
+            const startIndex = (currentPage - 1) * rowsPerPage;
+            const endIndex = Math.min(startIndex + rowsPerPage, totalRecords);
+            const pageData = filteredStudents.slice(startIndex, endIndex);
+
+            document.getElementById("record-count").textContent = `Showing ${startIndex + 1}–${endIndex} of ${totalRecords} records`;
+            document.getElementById("page-indicator").textContent = `Page ${currentPage} of ${totalPages}`;
+
+            tbody.innerHTML = pageData.map(student => `
+                <tr class="hover:bg-gray-50/80 transition">
+                    <td class="py-3 px-6 font-medium text-gray-900">${escapeHtml(student.id || '')}</td>
+                    <td class="py-3 px-6">${escapeHtml(student.name || '')}</td>
+                    <td class="py-3 px-6">${escapeHtml(student.address || '')}</td>
+                    <td class="py-3 px-6">${escapeHtml(student.tel || '')}</td>
+                    <td class="py-3 px-6 text-center space-x-2">
+                        <button onclick="openEditModal('${student.firestoreId}')" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 p-1.5 rounded-lg transition" title="Edit">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        <button onclick="deleteStudent('${student.firestoreId}')" class="text-rose-600 hover:text-rose-900 bg-rose-50 hover:bg-rose-100 p-1.5 rounded-lg transition" title="Delete">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+
+            updatePaginationButtons(currentPage, totalPages);
+        }
+
+        function updatePaginationButtons(current, total) {
+            document.getElementById("btn-first").disabled = current === 1;
+            document.getElementById("btn-prev").disabled = current === 1;
+            document.getElementById("btn-next").disabled = current === total;
+            document.getElementById("btn-last").disabled = current === total;
+        }
+
+        window.changePage = function(direction) {
+            const totalPages = Math.ceil(filteredStudents.length / rowsPerPage) || 1;
+            currentPage += direction;
+            if (currentPage < 1) currentPage = 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+            renderTablePage();
+        }
+
+        window.goToPage = function(page) {
+            currentPage = page;
+            renderTablePage();
+        }
+
+        window.goToLastPage = function() {
+            const totalPages = Math.ceil(filteredStudents.length / rowsPerPage) || 1;
+            currentPage = totalPages;
+            renderTablePage();
+        }
+
+        window.changeRowsPerPage = function(event) {
+            rowsPerPage = parseInt(event.target.value);
+            currentPage = 1;
+            renderTablePage();
+        }
+
+        // Search Filter Listener
+        document.getElementById("search-input").addEventListener("input", () => {
+            currentPage = 1;
+            applyFilterAndRender();
+        });
+
+        // Modal Controls
+        window.openAddModal = function() {
+            document.getElementById("modal-title").textContent = "Add New Student";
+            document.getElementById("student-form").reset();
+            document.getElementById("doc-id").value = "";
+            document.getElementById("student-modal").classList.remove("hidden");
+            document.getElementById("student-modal").classList.add("flex");
+        }
+
+        window.openEditModal = function(firestoreId) {
+            const student = allStudents.find(s => s.firestoreId === firestoreId);
+            if (!student) return;
+
+            document.getElementById("modal-title").textContent = "Edit Student";
+            document.getElementById("doc-id").value = student.firestoreId;
+            document.getElementById("input-std-id").value = student.id || '';
+            document.getElementById("input-name").value = student.name || '';
+            document.getElementById("input-address").value = student.address || '';
+            document.getElementById("input-tel").value = student.tel || '';
+
+            document.getElementById("student-modal").classList.remove("hidden");
+            document.getElementById("student-modal").classList.add("flex");
+        }
+
+        window.closeModal = function() {
+            document.getElementById("student-modal").classList.remove("flex");
+            document.getElementById("student-modal").classList.add("hidden");
+        }
+
+        // Form Submit Handler
+        window.handleFormSubmit = async function(event) {
+            event.preventDefault();
+            const firestoreId = document.getElementById("doc-id").value;
+            const studentData = {
+                id: document.getElementById("input-std-id").value.trim(),
+                name: document.getElementById("input-name").value.trim(),
+                address: document.getElementById("input-address").value.trim(),
+                tel: document.getElementById("input-tel").value.trim()
+            };
+
+            try {
+                if (firestoreId) {
+                    await updateDoc(doc(db, COLLECTION_NAME, firestoreId), studentData);
+                } else {
+                    await addDoc(collection(db, COLLECTION_NAME), studentData);
+                }
+                closeModal();
+                fetchStudents();
+            } catch (e) {
+                console.error("Error saving document: ", e);
+                alert("Error saving record. Check console.");
+            }
+        }
+
+        // Delete Row
+        window.deleteStudent = async function(firestoreId) {
+            if (!confirm("Are you sure you want to delete this student record?")) return;
+            try {
+                await deleteDoc(doc(db, COLLECTION_NAME, firestoreId));
+                fetchStudents();
+            } catch (e) {
+                console.error("Error deleting document: ", e);
+                alert("Error deleting record.");
+            }
+        }
+
+        // Add 100 Test Rows
+        window.seedTestData = async function() {
+            if (!confirm("This will generate and add 100 test student records to your Firestore database. Continue?")) return;
+            
+            const firstNames = ["James", "Mary", "John", "Patricia", "Robert", "Jennifer", "Michael", "Linda", "William", "Elizabeth", "David", "Barbara", "Richard", "Susan", "Joseph", "Jessica", "Thomas", "Sarah", "Charles", "Karen"];
+            const lastNames = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Miller", "Davis", "Garcia", "Rodriguez", "Wilson", "Martinez", "Anderson", "Taylor", "Thomas", "Moore", "Jackson", "Martin", "Lee", "Perez", "Thompson"];
+            const streets = ["Main St", "Oak Ave", "Maple Rd", "Cedar Ln", "Pine St", "Elm St", "Washington Blvd", "Park Ave", "Lakeview Dr", "Highland Ave"];
+            const cities = ["New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "Philadelphia", "San Antonio", "San Diego", "Dallas", "San Jose"];
+
+            try {
+                const batch = writeBatch(db);
+                for (let i = 1; i <= 100; i++) {
+                    const randomFirst = firstNames[Math.floor(Math.random() * firstNames.length)];
+                    const randomLast = lastNames[Math.floor(Math.random() * lastNames.length)];
+                    const randomStreetNum = Math.floor(Math.random() * 900) + 100;
+                    const randomStreet = streets[Math.floor(Math.random() * streets.length)];
+                    const randomCity = cities[Math.floor(Math.random() * cities.length)];
+                    const randomPhone = `+1 (${Math.floor(Math.random() * 899) + 100}) ${Math.floor(Math.random() * 899) + 100}-${Math.floor(Math.random() * 8999) + 1000}`;
+
+                    const newDocRef = doc(collection(db, COLLECTION_NAME));
+                    batch.set(newDocRef, {
+                        id: `STU-${Math.floor(Math.random() * 89999) + 10000}`,
+                        name: `${randomFirst} ${randomLast}`,
+                        address: `${randomStreetNum} ${randomStreet}, ${randomCity}`,
+                        tel: randomPhone
+                    });
+                }
+
+                await batch.commit();
+                alert("Successfully added 100 test student records!");
+                fetchStudents();
+            } catch (e) {
+                console.error("Error seeding test data: ", e);
+                alert("Error adding test data. Check console.");
+            }
+        }
+
+        // Export to Excel
+        window.exportToExcel = function() {
+            if (allStudents.length === 0) {
+                alert("No data available to export.");
+                return;
+            }
+
+            const exportData = allStudents.map(s => ({
+                "Student ID": s.id || '',
+                "Full Name": s.name || '',
+                "Address": s.address || '',
+                "Telephone": s.tel || ''
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(exportData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Students");
+            XLSX.writeFile(workbook, "students_data.xlsx");
+        }
+
+        // Import from Excel
+        window.importFromExcel = async function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const json = XLSX.utils.sheet_to_json(worksheet);
+
+                    if (json.length === 0) {
+                        alert("The imported Excel sheet is empty.");
+                        return;
+                    }
+
+                    if (!confirm(`Found ${json.length} records in Excel file. Upload them to Firestore?`)) {
+                        event.target.value = '';
+                        return;
+                    }
+
+                    const batch = writeBatch(db);
+                    json.forEach(row => {
+                        const newDocRef = doc(collection(db, COLLECTION_NAME));
+                        batch.set(newDocRef, {
+                            id: String(row["Student ID"] || row["id"] || `STU-${Math.floor(Math.random() * 89999) + 10000}`),
+                            name: String(row["Full Name"] || row["name"] || 'Unknown'),
+                            address: String(row["Address"] || row["address"] || 'N/A'),
+                            tel: String(row["Telephone"] || row["tel"] || 'N/A')
+                        });
+                    });
+
+                    await batch.commit();
+                    alert(`Successfully imported ${json.length} records!`);
+                    event.target.value = '';
+                    fetchStudents();
+                } catch (err) {
+                    console.error("Error importing file:", err);
+                    alert("Failed to parse or upload Excel file.");
+                    event.target.value = '';
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        initApp();
+    </script>
+</body>
+</html>
