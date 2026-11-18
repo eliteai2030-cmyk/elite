@@ -1,609 +1,499 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-gray-100">
+<html lang="en" class="h-full bg-gray-50">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Management Modern SPA</title>
+    <title>Modern Student Management SPA</title>
     <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- SheetJS for Excel Import/Export -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS (XLSX) for Excel Import/Export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
-<body class="h-full flex flex-col justify-between">
+<body class="h-full flex flex-col">
 
-    <!-- AUTHENTICATION VIEW -->
-    <div id="auth-view" class="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-500 to-purple-600 p-4">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-8">
-            <div class="text-center mb-8">
-                <i class="fa-solid fa-graduation-cap text-indigo-600 text-5xl mb-3"></i>
-                <h1 class="text-2xl font-bold text-gray-800">Student Portal System</h1>
-                <p class="text-sm text-gray-500">Sign in to manage student records</p>
+    <!-- Top Navigation Bar -->
+    <header class="bg-indigo-600 shadow-md text-white">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <i class="fa-solid fa-graduation-cap text-2xl"></i>
+                <h1 class="text-xl font-bold tracking-wide">Student Management Portal</h1>
             </div>
-            
-            <div id="auth-error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 text-sm" role="alert">
-                <span id="auth-error-msg" class="block sm:inline"></span>
+            <div id="auth-status" class="text-sm bg-indigo-700 px-3 py-1.5 rounded-full flex items-center space-x-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse" id="connection-dot"></span>
+                <span id="connection-text">Connecting to Firebase...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-8 flex flex-col gap-6">
+
+        <!-- Action Toolbar Card -->
+        <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-wrap gap-4 items-center justify-between">
+            <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                <!-- Search Bar -->
+                <div class="relative flex-grow md:w-80">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                        <i class="fa-solid fa-search"></i>
+                    </span>
+                    <input type="text" id="search-input" placeholder="Search by name, ID, address..." 
+                        class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
             </div>
 
-            <form id="login-form" class="space-y-6">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Email or Username</label>
-                    <div class="mt-1 relative rounded-md shadow-sm">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <i class="fa-solid fa-user text-gray-400"></i>
-                        </div>
-                        <input type="text" id="login-email" required class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="admin or user@email.com">
+            <!-- Action Buttons -->
+            <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-end">
+                <button onclick="openAddModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition shadow-sm flex items-center space-x-2">
+                    <i class="fa-solid fa-user-plus"></i>
+                    <span>Add Student</span>
+                </button>
+                <button onclick="seedTestData()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition shadow-sm flex items-center space-x-2">
+                    <i class="fa-solid fa-database"></i>
+                    <span>Add 100 Test Rows</span>
+                </button>
+                <button onclick="exportToExcel()" class="bg-sky-600 hover:bg-sky-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition shadow-sm flex items-center space-x-2">
+                    <i class="fa-solid fa-file-excel"></i>
+                    <span>Export Excel</span>
+                </button>
+                <label class="bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition shadow-sm flex items-center space-x-2 cursor-pointer">
+                    <i class="fa-solid fa-file-import"></i>
+                    <span>Import Excel</span>
+                    <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="importFromExcel(event)">
+                </label>
+            </div>
+        </section>
+
+        <!-- Data Table Card -->
+        <section class="bg-white rounded-xl shadow-sm border border-gray-100 flex-grow flex flex-col overflow-hidden">
+            <div class="overflow-x-auto flex-grow">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-gray-50 text-gray-700 uppercase text-xs tracking-wider border-b border-gray-200 sticky top-0">
+                        <tr>
+                            <th class="py-3.5 px-6 font-semibold">Student ID</th>
+                            <th class="py-3.5 px-6 font-semibold">Full Name</th>
+                            <th class="py-3.5 px-6 font-semibold">Address</th>
+                            <th class="py-3.5 px-6 font-semibold">Telephone</th>
+                            <th class="py-3.5 px-6 font-semibold text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="student-table-body" class="divide-y divide-gray-100 text-sm text-gray-600">
+                        <tr>
+                            <td colspan="5" class="py-8 text-center text-gray-400">Loading student records...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination & Footer Bar -->
+            <div class="bg-gray-50 px-6 py-3 border-t border-gray-200 flex flex-wrap justify-between items-center gap-4 text-xs text-gray-600">
+                <div class="flex items-center space-x-4">
+                    <span id="record-count">Showing 0 of 0 records</span>
+                    <div class="flex items-center space-x-2">
+                        <span>Per page:</span>
+                        <select id="rows-per-page" onchange="changeRowsPerPage(event)" class="border border-gray-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                            <option value="10">10</option>
+                            <option value="25" selected>25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
                     </div>
                 </div>
 
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Password</label>
-                    <div class="mt-1 relative rounded-md shadow-sm">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <i class="fa-solid fa-lock text-gray-400"></i>
-                        </div>
-                        <input type="password" id="login-password" required class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="••••••••">
-                    </div>
-                </div>
-
-                <div>
-                    <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150">
-                        Sign In
+                <!-- Pagination Buttons -->
+                <div class="flex items-center space-x-2">
+                    <button onclick="goToPage(1)" id="btn-first" class="px-2.5 py-1 bg-white border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-angles-left"></i>
+                    </button>
+                    <button onclick="changePage(-1)" id="btn-prev" class="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Previous
+                    </button>
+                    <span id="page-indicator" class="font-medium px-2">Page 1 of 1</span>
+                    <button onclick="changePage(1)" id="btn-next" class="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Next
+                    </button>
+                    <button onclick="goToLastPage()" id="btn-last" class="px-2.5 py-1 bg-white border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-angles-right"></i>
                     </button>
                 </div>
-                <div class="text-xs text-center text-gray-500">
-                    <p>Admin Login: username: <strong>admin</strong> | password: <strong>1234</strong></p>
-                    <p class="mt-1">Or use any valid Firebase Email/Password account.</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Add/Edit Student Modal -->
+    <div id="student-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all">
+            <div class="bg-indigo-600 px-6 py-4 flex justify-between items-center text-white">
+                <h3 id="modal-title" class="font-bold text-lg">Add New Student</h3>
+                <button onclick="closeModal()" class="text-white/80 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form id="student-form" onsubmit="handleFormSubmit(event)" class="p-6 space-y-4">
+                <input type="hidden" id="doc-id">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 uppercase mb-1">Student ID</label>
+                    <input type="text" id="input-std-id" required placeholder="e.g. STU-1001" 
+                        class="w-full px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 uppercase mb-1">Full Name</label>
+                    <input type="text" id="input-name" required placeholder="e.g. John Doe" 
+                        class="w-full px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 uppercase mb-1">Address</label>
+                    <input type="text" id="input-address" required placeholder="e.g. 123 Main St, City" 
+                        class="w-full px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 uppercase mb-1">Telephone</label>
+                    <input type="tel" id="input-tel" required placeholder="e.g. +1 555-0192" 
+                        class="w-full px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="flex justify-end space-x-3 pt-4 border-t border-gray-100">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition shadow-sm">Save Student</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- MAIN DASHBOARD VIEW -->
-    <div id="dashboard-view" class="hidden flex-1 flex flex-col h-full">
-        <!-- Top Navbar -->
-        <nav class="bg-indigo-600 shadow-md">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex justify-between h-16">
-                    <div class="flex items-center">
-                        <i class="fa-solid fa-graduation-cap text-white text-2xl mr-3"></i>
-                        <span class="text-white font-bold text-lg">Student Dashboard</span>
-                        <span id="user-role-badge" class="ml-3 px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-800 text-indigo-100"></span>
-                    </div>
-                    <div class="flex items-center space-x-4">
-                        <span id="user-display-email" class="text-indigo-100 text-sm hidden sm:inline"></span>
-                        <button id="logout-btn" class="bg-indigo-700 hover:bg-indigo-800 text-white px-3 py-2 rounded-md text-sm font-medium transition">
-                            <i class="fa-solid fa-right-from-bracket mr-1"></i> Sign Out
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </nav>
-
-        <!-- Main Content Container -->
-        <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 overflow-y-auto">
-            
-            <!-- Action Toolbar -->
-            <div class="bg-white shadow rounded-lg p-4 mb-6 flex flex-col md:flex-row items-center justify-between gap-4">
-                <div class="w-full md:w-1/3 relative">
-                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <i class="fa-solid fa-search text-gray-400"></i>
-                    </span>
-                    <input type="text" id="search-input" placeholder="Search by name, address, ID..." class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                </div>
-
-                <div class="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
-                    <!-- Admin Only Actions -->
-                    <div id="admin-actions" class="hidden flex items-center gap-2">
-                        <button id="open-add-modal-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium transition shadow-sm">
-                            <i class="fa-solid fa-user-plus mr-1"></i> Add Student
-                        </button>
-                        <button id="seed-data-btn" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md text-sm font-medium transition shadow-sm" title="Add 100 test rows">
-                            <i class="fa-solid fa-database mr-1"></i> Load 100 Test Rows
-                        </button>
-                    </div>
-
-                    <!-- Import/Export (Available to all or Admins based on auth policy) -->
-                    <label class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-md text-sm font-medium transition cursor-pointer shadow-sm">
-                        <i class="fa-solid fa-file-excel text-green-600 mr-1"></i> Import Excel
-                        <input type="file" id="import-excel-file" accept=".xlsx, .xls, .csv" class="hidden">
-                    </label>
-                    <button id="export-excel-btn" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-md text-sm font-medium transition shadow-sm">
-                        <i class="fa-solid fa-file-arrow-down text-blue-600 mr-1"></i> Export Excel
-                    </button>
-                </div>
-            </div>
-
-            <!-- Student Data Table Card -->
-            <div class="bg-white shadow rounded-lg overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telephone</th>
-                                <th scope="col" id="actions-th" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="students-table-body" class="bg-white divide-y divide-gray-200">
-                            <!-- Dynamic Rows Injected Here -->
-                        </tbody>
-                    </table>
-                </div>
-                <!-- Pagination / Counter Footer -->
-                <div class="bg-gray-50 px-6 py-3 border-t border-gray-200 flex items-center justify-between">
-                    <div class="text-sm text-gray-500">
-                        Showing <span id="record-count" class="font-medium">0</span> student records
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- ADD / EDIT STUDENT MODAL -->
-    <div id="student-modal" class="fixed z-10 inset-0 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
-            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                <form id="student-form">
-                    <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                        <h3 id="modal-title-text" class="text-lg leading-6 font-medium text-gray-900 mb-4">Add New Student</h3>
-                        <input type="hidden" id="student-doc-id">
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Student ID</label>
-                                <input type="text" id="modal-student-id" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Full Name</label>
-                                <input type="text" id="modal-student-name" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Address</label>
-                                <input type="text" id="modal-student-address" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Telephone</label>
-                                <input type="text" id="modal-student-tel" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                        <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">Save</button>
-                        <button type="button" id="close-modal-btn" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Cancel</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Loading Spinner Overlay -->
-    <div id="loading-overlay" class="fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center hidden">
-        <div class="bg-white p-5 rounded-lg shadow-xl flex items-center space-x-3">
-            <i class="fa-solid fa-spinner fa-spin text-indigo-600 text-2xl"></i>
-            <span id="loading-text" class="text-gray-700 font-medium">Processing...</span>
-        </div>
-    </div>
-
-    <!-- Firebase SDK Scripts & Application Logic -->
+    <!-- Firebase App & Firestore Modular SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
+        import { getFirestore, collection, getDocs, addDoc, doc, updateDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // Provided Firebase Configuration
+        // Your exact Firebase configuration
         const firebaseConfig = {
-          apiKey: "AIzaSyArazr_wo1buft3sMCYUSy9KKZHJdI3FJY",
-          authDomain: "mydata-6f1d9.firebaseapp.com",
-          projectId: "mydata-6f1d9",
-          storageBucket: "mydata-6f1d9.firebasestorage.app",
-          messagingSenderId: "684246842052",
-          appId: "1:684246842052:web:18fd2b476bc9c44e3d6791",
-          measurementId: "G-YSZJLV7C5F"
+            apiKey: "AIzaSyArazr_wo1buft3sMCYUSy9KKZHJdI3FJY",
+            authDomain: "mydata-6f1d9.firebaseapp.com",
+            projectId: "mydata-6f1d9",
+            storageBucket: "mydata-6f1d9.firebasestorage.app",
+            messagingSenderId: "684246842052",
+            appId: "1:684246842052:web:18fd2b476bc9c44e3d6791",
+            measurementId: "G-YSZJLV7C5F"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
+        const analytics = getAnalytics(app);
         const db = getFirestore(app);
+        const COLLECTION_NAME = "students";
 
-        // State variables
-        let studentsData = [];
-        let currentUserRole = 'viewer'; // 'admin' or 'viewer'
-        let currentAuthUser = null;
+        let allStudents = [];
+        let filteredStudents = [];
+        let currentPage = 1;
+        let rowsPerPage = 25;
 
-        // DOM Elements
-        const authView = document.getElementById('auth-view');
-        const dashboardView = document.getElementById('dashboard-view');
-        const loginForm = document.getElementById('login-form');
-        const loginEmailInput = document.getElementById('login-email');
-        const loginPasswordInput = document.getElementById('login-password');
-        const authErrorDiv = document.getElementById('auth-error');
-        const authErrorMsg = document.getElementById('auth-error-msg');
-        const logoutBtn = document.getElementById('logout-btn');
-        const userDisplayEmail = document.getElementById('user-display-email');
-        const userRoleBadge = document.getElementById('user-role-badge');
-        const adminActions = document.getElementById('admin-actions');
-        const actionsTh = document.getElementById('actions-th');
-        const studentsTableBody = document.getElementById('students-table-body');
-        const searchInput = document.getElementById('search-input');
-        const recordCountSpan = document.getElementById('record-count');
-        
-        // Modal Elements
-        const studentModal = document.getElementById('student-modal');
-        const openAddModalBtn = document.getElementById('open-add-modal-btn');
-        const closeModalBtn = document.getElementById('close-modal-btn');
-        const studentForm = document.getElementById('student-form');
-        const modalTitleText = document.getElementById('modal-title-text');
-        const studentDocIdInput = document.getElementById('student-doc-id');
-        const modalStudentId = document.getElementById('modal-student-id');
-        const modalStudentName = document.getElementById('modal-student-name');
-        const modalStudentAddress = document.getElementById('modal-student-address');
-        const modalStudentTel = document.getElementById('modal-student-tel');
-        
-        // Buttons
-        const seedDataBtn = document.getElementById('seed-data-btn');
-        const exportExcelBtn = document.getElementById('export-excel-btn');
-        const importExcelFile = document.getElementById('import-excel-file');
-        const loadingOverlay = document.getElementById('loading-overlay');
-        const loadingText = document.getElementById('loading-text');
+        const connectionDot = document.getElementById("connection-dot");
+        const connectionText = document.getElementById("connection-text");
 
-        function showLoading(text = "Processing...") {
-            loadingText.textContent = text;
-            loadingOverlay.classList.remove('hidden');
-        }
-
-        function hideLoading() {
-            loadingOverlay.classList.add('hidden');
-        }
-
-        // Authentication State Listener
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                currentAuthUser = user;
-                authView.classList.add('hidden');
-                dashboardView.classList.remove('hidden');
-                userDisplayEmail.textContent = user.email || "Admin User";
-                
-                if (currentUserRole === 'admin') {
-                    userRoleBadge.textContent = "Administrator";
-                    userRoleBadge.className = "ml-3 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800";
-                    adminActions.classList.remove('hidden');
-                    actionsTh.classList.remove('hidden');
-                } else {
-                    userRoleBadge.textContent = "Viewer / Student";
-                    userRoleBadge.className = "ml-3 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800";
-                    adminActions.classList.add('hidden');
-                    actionsTh.classList.add('hidden');
-                }
+        async function initApp() {
+            try {
                 await fetchStudents();
-            } else {
-                currentAuthUser = null;
-                dashboardView.classList.add('hidden');
-                authView.classList.remove('hidden');
-            }
-        });
-
-        // Login Form Handler
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const usernameOrEmail = loginEmailInput.value.trim();
-            const password = loginPasswordInput.value;
-            authErrorDiv.classList.add('hidden');
-
-            showLoading("Signing in...");
-
-            // Check Custom Hardcoded Admin Login
-            if (usernameOrEmail === 'admin' && password === '1234') {
-                currentUserRole = 'admin';
-                try {
-                    // Sign in anonymously or with dummy credential to satisfy Firebase auth session requirement
-                    await signInAnonymously(auth);
-                } catch (err) {
-                    console.error("Auth session fallback error:", err);
-                    hideLoading();
-                    authErrorMsg.textContent = "Authentication configuration error: " + err.message;
-                    authErrorDiv.classList.remove('hidden');
-                }
-                return;
-            }
-
-            // Otherwise, attempt standard Firebase Auth
-            try {
-                currentUserRole = 'viewer'; // Default for regular user logins, can be adapted
-                // If email format isn't valid, treat as viewer or check custom rules
-                let loginEmail = usernameOrEmail;
-                if (!loginEmail.includes('@')) {
-                    loginEmail = usernameOrEmail + "@mydata-6f1d9.firebaseapp.com";
-                }
-                await signInWithEmailAndPassword(auth, loginEmail, password);
+                connectionDot.classList.remove("bg-yellow-400", "animate-pulse");
+                connectionDot.classList.add("bg-emerald-400");
+                connectionText.textContent = "Connected to Firebase";
             } catch (error) {
-                console.error(error);
-                hideLoading();
-                authErrorMsg.textContent = "Invalid credentials or user not found. (For Admin use admin / 1234)";
-                authErrorDiv.classList.remove('hidden');
+                console.error("Firebase connection error:", error);
+                connectionDot.classList.remove("bg-yellow-400", "animate-pulse");
+                connectionDot.classList.add("bg-red-400");
+                connectionText.textContent = "Connection Error";
             }
-        });
+        }
 
-        // Logout
-        logoutBtn.addEventListener('click', async () => {
-            showLoading("Signing out...");
-            await signOut(auth);
-            currentUserRole = 'viewer';
-            hideLoading();
-        });
-
-        // Fetch Students from Firestore
-        async function fetchStudents() {
-            showLoading("Loading student records...");
+        window.fetchStudents = async function() {
             try {
-                const querySnapshot = await getDocs(collection(db, "students"));
-                studentsData = [];
-                querySnapshot.forEach((docSnap) => {
-                    studentsData.push({ firestoreId: docSnap.id, ...docSnap.data() });
+                const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
+                allStudents = [];
+                querySnapshot.forEach((docSnapshot) => {
+                    allStudents.push({ firestoreId: docSnapshot.id, ...docSnapshot.data() });
                 });
-                renderStudentsTable(studentsData);
-            } catch (error) {
-                console.error("Error fetching students: ", error);
-                alert("Error loading student records from Firestore: " + error.message);
-            } finally {
-                hideLoading();
+                applyFilterAndRender();
+            } catch (e) {
+                console.error("Error fetching documents: ", e);
             }
         }
 
-        // Render Table
-        function renderStudentsTable(data) {
-            studentsTableBody.innerHTML = '';
-            recordCountSpan.textContent = data.length;
+        function applyFilterAndRender() {
+            const term = document.getElementById("search-input").value.toLowerCase();
+            filteredStudents = allStudents.filter(s => 
+                (s.id && s.id.toLowerCase().includes(term)) ||
+                (s.name && s.name.toLowerCase().includes(term)) ||
+                (s.address && s.address.toLowerCase().includes(term)) ||
+                (s.tel && s.tel.toLowerCase().includes(term))
+            );
 
-            if (data.length === 0) {
-                const colSpan = currentUserRole === 'admin' ? 5 : 4;
-                studentsTableBody.innerHTML = `<tr><td colspan="${colSpan}" class="px-6 py-4 text-center text-sm text-gray-500">No student records found.</td></tr>`;
+            // Reset to page 1 if current page exceeds total pages
+            const totalPages = Math.ceil(filteredStudents.length / rowsPerPage) || 1;
+            if (currentPage > totalPages) {
+                currentPage = totalPages;
+            }
+
+            renderTablePage();
+        }
+
+        function renderTablePage() {
+            const tbody = document.getElementById("student-table-body");
+            const totalRecords = filteredStudents.length;
+            const totalPages = Math.ceil(totalRecords / rowsPerPage) || 1;
+
+            if (totalRecords === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-gray-400">No student records found.</td></tr>`;
+                document.getElementById("record-count").textContent = `Showing 0 of 0 records`;
+                document.getElementById("page-indicator").textContent = `Page 1 of 1`;
+                updatePaginationButtons(1, 1);
                 return;
             }
 
-            data.forEach((student) => {
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-gray-50 transition";
-                
-                let actionsHtml = '';
-                if (currentUserRole === 'admin') {
-                    actionsHtml = `
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <button onclick="window.editStudent('${student.firestoreId}')" class="text-indigo-600 hover:text-indigo-900 mr-3" title="Edit"><i class="fa-solid fa-pen-to-square"></i></button>
-                            <button onclick="window.deleteStudent('${student.firestoreId}')" class="text-red-600 hover:text-red-900" title="Delete"><i class="fa-solid fa-trash"></i></button>
-                        </td>
-                    `;
-                }
+            const startIndex = (currentPage - 1) * rowsPerPage;
+            const endIndex = Math.min(startIndex + rowsPerPage, totalRecords);
+            const pageData = filteredStudents.slice(startIndex, endIndex);
 
-                tr.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${escapeHtml(student.id || '')}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(student.name || '')}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(student.address || '')}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(student.tel || '')}</td>
-                    ${currentUserRole === 'admin' ? actionsHtml : ''}
-                `;
-                studentsTableBody.appendChild(tr);
-            });
+            document.getElementById("record-count").textContent = `Showing ${startIndex + 1}–${endIndex} of ${totalRecords} records`;
+            document.getElementById("page-indicator").textContent = `Page ${currentPage} of ${totalPages}`;
+
+            tbody.innerHTML = pageData.map(student => `
+                <tr class="hover:bg-gray-50/80 transition">
+                    <td class="py-3 px-6 font-medium text-gray-900">${escapeHtml(student.id || '')}</td>
+                    <td class="py-3 px-6">${escapeHtml(student.name || '')}</td>
+                    <td class="py-3 px-6">${escapeHtml(student.address || '')}</td>
+                    <td class="py-3 px-6">${escapeHtml(student.tel || '')}</td>
+                    <td class="py-3 px-6 text-center space-x-2">
+                        <button onclick="openEditModal('${student.firestoreId}')" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 p-1.5 rounded-lg transition" title="Edit">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        <button onclick="deleteStudent('${student.firestoreId}')" class="text-rose-600 hover:text-rose-900 bg-rose-50 hover:bg-rose-100 p-1.5 rounded-lg transition" title="Delete">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+
+            updatePaginationButtons(currentPage, totalPages);
         }
 
-        // Search Filter
-        searchInput.addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
-            const filtered = studentsData.filter(s => 
-                String(s.id).toLowerCase().includes(term) ||
-                String(s.name).toLowerCase().includes(term) ||
-                String(s.address).toLowerCase().includes(term) ||
-                String(s.tel).toLowerCase().includes(term)
-            );
-            renderStudentsTable(filtered);
+        function updatePaginationButtons(current, total) {
+            document.getElementById("btn-first").disabled = current === 1;
+            document.getElementById("btn-prev").disabled = current === 1;
+            document.getElementById("btn-next").disabled = current === total;
+            document.getElementById("btn-last").disabled = current === total;
+        }
+
+        window.changePage = function(direction) {
+            const totalPages = Math.ceil(filteredStudents.length / rowsPerPage) || 1;
+            currentPage += direction;
+            if (currentPage < 1) currentPage = 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+            renderTablePage();
+        }
+
+        window.goToPage = function(page) {
+            currentPage = page;
+            renderTablePage();
+        }
+
+        window.goToLastPage = function() {
+            const totalPages = Math.ceil(filteredStudents.length / rowsPerPage) || 1;
+            currentPage = totalPages;
+            renderTablePage();
+        }
+
+        window.changeRowsPerPage = function(event) {
+            rowsPerPage = parseInt(event.target.value);
+            currentPage = 1;
+            renderTablePage();
+        }
+
+        // Search Filter Listener
+        document.getElementById("search-input").addEventListener("input", () => {
+            currentPage = 1;
+            applyFilterAndRender();
         });
 
         // Modal Controls
-        openAddModalBtn.addEventListener('click', () => {
-            modalTitleText.textContent = "Add New Student";
-            studentDocIdInput.value = '';
-            modalStudentId.value = '';
-            modalStudentName.value = '';
-            modalStudentAddress.value = '';
-            modalStudentTel.value = '';
-            studentModal.classList.remove('hidden');
-        });
+        window.openAddModal = function() {
+            document.getElementById("modal-title").textContent = "Add New Student";
+            document.getElementById("student-form").reset();
+            document.getElementById("doc-id").value = "";
+            document.getElementById("student-modal").classList.remove("hidden");
+            document.getElementById("student-modal").classList.add("flex");
+        }
 
-        closeModalBtn.addEventListener('click', () => {
-            studentModal.classList.add('hidden');
-        });
-
-        // Add or Edit Form Submit
-        studentForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const docId = studentDocIdInput.value;
-            const studentPayload = {
-                id: modalStudentId.value.trim(),
-                name: modalStudentName.value.trim(),
-                address: modalStudentAddress.value.trim(),
-                tel: modalStudentTel.value.trim(),
-                updatedAt: new Date().toISOString()
-            };
-
-            studentModal.classList.add('hidden');
-            showLoading("Saving student record...");
-
-            try {
-                if (docId) {
-                    // Update
-                    await updateDoc(doc(db, "students", docId), studentPayload);
-                } else {
-                    // Create
-                    await addDoc(collection(db, "students"), studentPayload);
-                }
-                await fetchStudents();
-            } catch (error) {
-                console.error("Error saving student:", error);
-                alert("Error saving record: " + error.message);
-                hideLoading();
-            }
-        });
-
-        // Global functions for inline table buttons
-        window.editStudent = function(firestoreId) {
-            const student = studentsData.find(s => s.firestoreId === firestoreId);
+        window.openEditModal = function(firestoreId) {
+            const student = allStudents.find(s => s.firestoreId === firestoreId);
             if (!student) return;
 
-            modalTitleText.textContent = "Edit Student Record";
-            studentDocIdInput.value = student.firestoreId;
-            modalStudentId.value = student.id || '';
-            modalStudentName.value = student.name || '';
-            modalStudentAddress.value = student.address || '';
-            modalStudentTel.value = student.tel || '';
-            studentModal.classList.remove('hidden');
+            document.getElementById("modal-title").textContent = "Edit Student";
+            document.getElementById("doc-id").value = student.firestoreId;
+            document.getElementById("input-std-id").value = student.id || '';
+            document.getElementById("input-name").value = student.name || '';
+            document.getElementById("input-address").value = student.address || '';
+            document.getElementById("input-tel").value = student.tel || '';
+
+            document.getElementById("student-modal").classList.remove("hidden");
+            document.getElementById("student-modal").classList.add("flex");
         }
 
-        window.deleteStudent = async function(firestoreId) {
-            if (!confirm("Are you sure you want to delete this student record?")) return;
-            
-            showLoading("Deleting record...");
+        window.closeModal = function() {
+            document.getElementById("student-modal").classList.remove("flex");
+            document.getElementById("student-modal").classList.add("hidden");
+        }
+
+        // Form Submit Handler
+        window.handleFormSubmit = async function(event) {
+            event.preventDefault();
+            const firestoreId = document.getElementById("doc-id").value;
+            const studentData = {
+                id: document.getElementById("input-std-id").value.trim(),
+                name: document.getElementById("input-name").value.trim(),
+                address: document.getElementById("input-address").value.trim(),
+                tel: document.getElementById("input-tel").value.trim()
+            };
+
             try {
-                await deleteDoc(doc(db, "students", firestoreId));
-                await fetchStudents();
-            } catch (error) {
-                console.error("Error deleting record:", error);
-                alert("Error deleting record: " + error.message);
-                hideLoading();
+                if (firestoreId) {
+                    await updateDoc(doc(db, COLLECTION_NAME, firestoreId), studentData);
+                } else {
+                    await addDoc(collection(db, COLLECTION_NAME), studentData);
+                }
+                closeModal();
+                fetchStudents();
+            } catch (e) {
+                console.error("Error saving document: ", e);
+                alert("Error saving record. Check console.");
             }
         }
 
-        // Seed 100 Test Rows
-        seedDataBtn.addEventListener('click', async () => {
-            if (!confirm("This will add 100 sample student records to Firestore. Proceed?")) return;
-
-            showLoading("Generating and uploading 100 test rows...");
+        // Delete Row
+        window.deleteStudent = async function(firestoreId) {
+            if (!confirm("Are you sure you want to delete this student record?")) return;
             try {
-                const firstNames = ["Ahmed", "Mohamed", "Fatma", "Aya", "Mahmoud", "Omar", "Youssef", "Mariam", "Khaled", "Sara", "Ali", "Nour", "Hassan", "Zainab", "Ibrahim"];
-                const lastNames = ["Ibrahim", "Ali", "Hassan", "Hussein", "Mahmoud", "El-Sayed", "Salem", "Fouad", "Farouk", "Kassem", "Naguib", "Amin", "Mansour"];
-                const streets = ["Tahrir St", "Nile Corniche", "Haram St", "Merghany St", "Abbas El-Akkad", "Salah Salem", "Giza St", "Dokki St", "Mohandessin Ave"];
-                const cities = ["Cairo", "Giza", "Alexandria", "Mansoura", "Aswan", "Luxor", "Tanta", "Ismailia"];
+                await deleteDoc(doc(db, COLLECTION_NAME, firestoreId));
+                fetchStudents();
+            } catch (e) {
+                console.error("Error deleting document: ", e);
+                alert("Error deleting record.");
+            }
+        }
 
-                // Firestore batched writes support up to 500 operations per batch
+        // Add 100 Test Rows
+        window.seedTestData = async function() {
+            if (!confirm("This will generate and add 100 test student records to your Firestore database. Continue?")) return;
+            
+            const firstNames = ["James", "Mary", "John", "Patricia", "Robert", "Jennifer", "Michael", "Linda", "William", "Elizabeth", "David", "Barbara", "Richard", "Susan", "Joseph", "Jessica", "Thomas", "Sarah", "Charles", "Karen"];
+            const lastNames = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Miller", "Davis", "Garcia", "Rodriguez", "Wilson", "Martinez", "Anderson", "Taylor", "Thomas", "Moore", "Jackson", "Martin", "Lee", "Perez", "Thompson"];
+            const streets = ["Main St", "Oak Ave", "Maple Rd", "Cedar Ln", "Pine St", "Elm St", "Washington Blvd", "Park Ave", "Lakeview Dr", "Highland Ave"];
+            const cities = ["New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "Philadelphia", "San Antonio", "San Diego", "Dallas", "San Jose"];
+
+            try {
                 const batch = writeBatch(db);
-                
                 for (let i = 1; i <= 100; i++) {
-                    const fName = firstNames[Math.floor(Math.random() * firstNames.length)];
-                    const lName = lastNames[Math.floor(Math.random() * lastNames.length)];
-                    const street = streets[Math.floor(Math.random() * streets.length)];
-                    const city = cities[Math.floor(Math.random() * cities.length)];
-                    const phonePrefix = ["010", "011", "012", "015"][Math.floor(Math.random() * 4)];
-                    const phoneSuffix = Math.floor(10000000 + Math.random() * 90000000);
+                    const randomFirst = firstNames[Math.floor(Math.random() * firstNames.length)];
+                    const randomLast = lastNames[Math.floor(Math.random() * lastNames.length)];
+                    const randomStreetNum = Math.floor(Math.random() * 900) + 100;
+                    const randomStreet = streets[Math.floor(Math.random() * streets.length)];
+                    const randomCity = cities[Math.floor(Math.random() * cities.length)];
+                    const randomPhone = `+1 (${Math.floor(Math.random() * 899) + 100}) ${Math.floor(Math.random() * 899) + 100}-${Math.floor(Math.random() * 8999) + 1000}`;
 
-                    const newDocRef = doc(collection(db, "students"));
+                    const newDocRef = doc(collection(db, COLLECTION_NAME));
                     batch.set(newDocRef, {
-                        id: String(1000 + i),
-                        name: `${fName} ${lName}`,
-                        address: `${Math.floor(Math.random() * 99) + 1} ${street}, ${city}`,
-                        tel: `${phonePrefix}${phoneSuffix}`,
-                        createdAt: new Date().toISOString()
+                        id: `STU-${Math.floor(Math.random() * 89999) + 10000}`,
+                        name: `${randomFirst} ${randomLast}`,
+                        address: `${randomStreetNum} ${randomStreet}, ${randomCity}`,
+                        tel: randomPhone
                     });
                 }
 
                 await batch.commit();
-                await fetchStudents();
                 alert("Successfully added 100 test student records!");
-            } catch (error) {
-                console.error("Error seeding data:", error);
-                alert("Error seeding test data: " + error.message);
-                hideLoading();
+                fetchStudents();
+            } catch (e) {
+                console.error("Error seeding test data: ", e);
+                alert("Error adding test data. Check console.");
             }
-        });
+        }
 
         // Export to Excel
-        exportExcelBtn.addEventListener('click', () => {
-            if (studentsData.length === 0) {
+        window.exportToExcel = function() {
+            if (allStudents.length === 0) {
                 alert("No data available to export.");
                 return;
             }
 
-            const exportRows = studentsData.map(s => ({
-                "Student ID": s.id,
-                "Full Name": s.name,
-                "Address": s.address,
-                "Telephone": s.tel
+            const exportData = allStudents.map(s => ({
+                "Student ID": s.id || '',
+                "Full Name": s.name || '',
+                "Address": s.address || '',
+                "Telephone": s.tel || ''
             }));
 
-            const worksheet = XLSX.utils.json_to_sheet(exportRows);
+            const worksheet = XLSX.utils.json_to_sheet(exportData);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Students");
-            XLSX.writeFile(workbook, "Students_Data.xlsx");
-        });
+            XLSX.writeFile(workbook, "students_data.xlsx");
+        }
 
         // Import from Excel
-        importExcelFile.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
+        window.importFromExcel = async function(event) {
+            const file = event.target.files[0];
             if (!file) return;
 
-            showLoading("Importing Excel data...");
             const reader = new FileReader();
-            reader.onload = async function(evt) {
+            reader.onload = async function(e) {
                 try {
-                    const data = new Uint8Array(evt.target.result);
+                    const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
                     const firstSheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[firstSheetName];
-                    const jsonRecords = XLSX.utils.sheet_to_json(worksheet);
+                    const json = XLSX.utils.sheet_to_json(worksheet);
 
-                    if (jsonRecords.length === 0) {
-                        alert("The uploaded Excel sheet is empty.");
-                        hideLoading();
+                    if (json.length === 0) {
+                        alert("The imported Excel sheet is empty.");
+                        return;
+                    }
+
+                    if (!confirm(`Found ${json.length} records in Excel file. Upload them to Firestore?`)) {
+                        event.target.value = '';
                         return;
                     }
 
                     const batch = writeBatch(db);
-                    let count = 0;
-
-                    jsonRecords.forEach((row) => {
-                        // Map potential column names flexibly
-                        const studentId = String(row["Student ID"] || row["id"] || row["ID"] || Math.floor(Math.random() * 90000) + 10000);
-                        const name = String(row["Full Name"] || row["name"] || row["Name"] || "Unknown");
-                        const address = String(row["Address"] || row["address"] || "N/A");
-                        const tel = String(row["Telephone"] || row["tel"] || row["phone"] || "N/A");
-
-                        const newDocRef = doc(collection(db, "students"));
+                    json.forEach(row => {
+                        const newDocRef = doc(collection(db, COLLECTION_NAME));
                         batch.set(newDocRef, {
-                            id: studentId,
-                            name: name,
-                            address: address,
-                            tel: tel,
-                            importedAt: new Date().toISOString()
+                            id: String(row["Student ID"] || row["id"] || `STU-${Math.floor(Math.random() * 89999) + 10000}`),
+                            name: String(row["Full Name"] || row["name"] || 'Unknown'),
+                            address: String(row["Address"] || row["address"] || 'N/A'),
+                            tel: String(row["Telephone"] || row["tel"] || 'N/A')
                         });
-                        count++;
                     });
 
                     await batch.commit();
-                    await fetchStudents();
-                    alert(`Successfully imported ${count} student records from Excel!`);
-                } catch (error) {
-                    console.error("Error parsing/uploading Excel:", error);
-                    alert("Error processing Excel file: " + error.message);
-                    hideLoading();
-                } finally {
-                    importExcelFile.value = '';
+                    alert(`Successfully imported ${json.length} records!`);
+                    event.target.value = '';
+                    fetchStudents();
+                } catch (err) {
+                    console.error("Error importing file:", err);
+                    alert("Failed to parse or upload Excel file.");
+                    event.target.value = '';
                 }
             };
             reader.readAsArrayBuffer(file);
-        });
+        }
 
-        // Helper for XSS protection
         function escapeHtml(str) {
             return String(str)
                 .replace(/&/g, "&amp;")
-                .replace(/&lt;/g, "&lt;")
-                .replace(/&gt;/g, "&gt;")
-                .replace(/&quot;/g, "&quot;")
-                .replace(/&#039;/g, "&#039;");
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
         }
+
+        initApp();
     </script>
 </body>
 </html>
